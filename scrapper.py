@@ -6,8 +6,14 @@ base_url = 'https://www.elections.ca/Scripts/vis'
 
 # List of Postal Codes
 postal_codes = []
-faqs = {}
 json_object = []
+
+# Genesys API environment variables
+endpoint = 'https://api.genesysappliedresearch.com/v2/knowledge'
+kb_id = '6f1d63c3-1da0-4a1f-b94f-6e6a412987ed'
+language_code = 'en-US'
+org_id = 'e2242208-c200-4b57-af40-9e855461cec7'
+secret_key = '11b1af90-7ebf-4418-a3eb-7e34ba756c84'
 
 # Load postal codes
 def get_postal_codes():
@@ -26,7 +32,7 @@ def get_venue_for(postal_code):
         question = 'Where do I vote in {postalCode}'.format(postalCode=postal_code)
         answer = ''
         for element in soup.find_all('ul', class_='toc')[0].children:
-            answer += str(element.string)
+            answer += str(element.string).replace(':', '.').replace('\n', '.')
         json_object.append(create_document(question=question, answer=answer))
 
 # Get candidates for postal code
@@ -35,19 +41,20 @@ def get_candidates_for(postal_code):
     baseUrl=base_url, postalCode=postal_code)
     response = requests.get(candidate_url)
     soup = BeautifulSoup(response.text, "html.parser")
+    region = soup.find('h3', class_='HeaderInfo1')
     for element in soup.find_all('tr'):
         for data in element.children:
-            if any(word in str(data) for word in ['Liberal', 'Conservative', 'New Democrat']):
+            if any(word in str(data) for word in ['Liberal', 'Conservative', 'New Democratic']):
                 question = 'Who is the running candidate for '
-                if str(data.string.strip()) == 'Liberal Party of Canada':
+                if str(data.string.strip()) == 'Liberal Party of Canada':
                     question += 'Liberals '
-                elif str(data.string.strip()) == 'Conservative Party of Canada':
-                    question += 'Conservatives '
+                elif str(data.string.strip()) == 'Conservative Party of Canada':
+                    question += 'Conservatives '
                 else:
-                    question += 'New Democrats (NDP) '
+                    question += 'New Democrats NDP '
                 question += 'in {postalCode}'.format(postalCode=postal_code)
-                answer = '{candidate} is the running candidate for {party} in {postalCode}'.format(
-                candidate=str(data.previous_sibling.previous_sibling.previous_sibling.previous_sibling.string.strip()), party=str(data.string.strip()), postalCode=postal_code)
+                answer = '{candidate} is the running candidate for {party} in {region}'.format(
+                    candidate=str(data.find_previous_sibling('td').find_previous_sibling('td').string.strip()), party=str(data.string.strip()), region=str(region.string))
                 json_object.append(create_document(question=question, answer=answer))
 
 
@@ -59,12 +66,23 @@ def create_document(question, answer):
         "answer": answer
     }
     }
-    return json.dumps(response)
+    return response
 
 get_postal_codes()
 for code in postal_codes:
     get_venue_for(postal_code=code)
     get_candidates_for(postal_code=code)
 
-print(len(json_object))
-# print(json.dumps(json_object))
+# Create documents for knowledge base
+response = requests.post('{endpoint}/generatetoken'.format(endpoint=endpoint),
+    headers={ 'organizationid': org_id, 'secretkey': secret_key }
+)
+
+response = response.json()
+
+token = response['token']
+
+response = requests.patch('{endpoint}/knowledgebases/{kbid}/languages/{languageCode}/documents'.format(endpoint=endpoint, kbid=kb_id, languageCode=language_code),
+    data=json.dumps(json_object),
+    headers={ 'Content-Type': 'application/json', 'organizationid': org_id, 'token': token })
+
