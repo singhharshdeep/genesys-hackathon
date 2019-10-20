@@ -3,7 +3,9 @@ import axios from 'axios'
 export default class SearchBar extends Component {
 
     state = {
-        search:''
+        search:'',
+        results:[],
+        result:{}
     }
 
     onChange = e => this.setState({[e.target.name] : e.target.value});     
@@ -27,11 +29,32 @@ export default class SearchBar extends Component {
         }
         axios.post(`https://api.genesysappliedresearch.com/v2/knowledge/knowledgebases/${kbId}/search`, data, {headers:headers}).then(res=>
            {
-            console.log(res);
+                    console.log(res.data) 
+                    this.setState({results:res.data.results})
+                    console.log(this.state.results)
+                    let result=this.findMaxConfidence(this.state.results)
+                    console.log(result)
+                    this.setState({result})
+                    
             
            })
     }
 
+        findMaxConfidence=(results)=>{
+            let result={}
+            for(let i=1;i<results.length;i++){
+                let maxCon=results[0].confidence
+                result=results[0]
+                if(results[i].confidence>maxCon)
+                   { 
+                    maxCon=results[i].confidence
+                    result=results[i]
+                    }
+
+
+            }
+            return result
+        }
     generateToken=()=>{
         
             const headers = {
@@ -52,13 +75,22 @@ export default class SearchBar extends Component {
         setInterval(()=> this.generateToken(), 3600000)
     }
     render() {
+        const {result} = this.state;
+        const{faq} = result
+     
         return (
-            <div className='card col-md-8'>
-                 <form className="form" onSubmit={this.onSubmit}>
+            <React.Fragment>
+                 <form className="form m-2" onSubmit={this.onSubmit}>
+                     <label>Search</label>
+                <div className='m-4'>
                 <input className="form-control m-3" type="text" placeholder="Search"  name ='search' aria-label="Search"  value={this.state.name} onChange={this.onChange}/>
+                </div>
                 <button className=" btn blue-gradient m-3 btn-md" type="submit" style={{color:'white'}}>Search</button>
+                {faq?<div>
+                    {faq.answer}   
+                </div>:null}
                 </form>
-            </div>
+            </React.Fragment>
         )
     }
 }
