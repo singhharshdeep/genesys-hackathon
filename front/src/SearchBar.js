@@ -10,7 +10,11 @@ export default class SearchBar extends Component {
 
     onSubmit=(e)=>{
         e.preventDefault();
-
+        const headers = {
+            'Content-Type':'application/json',
+            'organizationid':'e2242208-c200-4b57-af40-9e855461cec7',
+            'token':sessionStorage.getItem('token')
+          }
         console.log(this.state.search);
         const kbId='78982621-302a-4f71-a358-6732325edd9f'
         let data= { "query":this.state.search,
@@ -18,19 +22,13 @@ export default class SearchBar extends Component {
                     "pageNumber": 1,
                     "sortOrder": "string",
                     "sortBy": "string",
-                    "languageCode":"{{languageCode}}",
+                    "languageCode":"en-US",
                     "documentType": "Faq"
         }
-        axios.post(`https://api.genesysappliedresearch.com/v2/knowledge/knowledgebases/${kbId}/search`, data, {
-            headers: {
-               
-                organizationid:'e2242208-c200-4b57-af40-9e855461cec7',
-                secretkey:'11b1af90-7ebf-4418-a3eb-7e34ba756c84'
-              } 
-          }).then(res=>
+        axios.post(`https://api.genesysappliedresearch.com/v2/knowledge/knowledgebases/${kbId}/search`, data, {headers:headers}).then(res=>
            {
-            console.log(res.token);
-             sessionStorage.setItem('token',res.data.token)
+            console.log(res);
+            
            })
     }
 
@@ -42,10 +40,7 @@ export default class SearchBar extends Component {
               }
           
               axios.post('https://api.genesysappliedresearch.com/v2/knowledge/generatetoken', {}, {
-                headers: {
-                    organizationid:'e2242208-c200-4b57-af40-9e855461cec7',
-                    secretkey:'11b1af90-7ebf-4418-a3eb-7e34ba756c84'
-                  } 
+                headers: headers
               }).then(res=>
                {
                 console.log(res.token);
@@ -58,7 +53,7 @@ export default class SearchBar extends Component {
     }
     render() {
         return (
-            <div>
+            <div className='card col-md-8'>
                  <form className="form" onSubmit={this.onSubmit}>
                 <input className="form-control m-3" type="text" placeholder="Search"  name ='search' aria-label="Search"  value={this.state.name} onChange={this.onChange}/>
                 <button className=" btn blue-gradient m-3 btn-md" type="submit" style={{color:'white'}}>Search</button>
